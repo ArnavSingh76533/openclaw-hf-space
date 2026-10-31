@@ -1,0 +1,37 @@
+# Optional: push this template to your own Hugging Face Space from GitHub.
+# Repo settings → Secrets: HF_TOKEN (write token). Variables: HF_SPACE (e.g. yourname/openclaw).
+# Then run this workflow (Actions → Deploy to Hugging Face → Run workflow).
+# Space secrets (bot token etc.) are still added in the Space's own settings.
+name: Deploy to Hugging Face
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    if: vars.HF_SPACE != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Create or update the Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE: ${{ vars.HF_SPACE }}
+        run: |
+          pip install -q huggingface_hub
+          python - <<'PY'
+          import os
+          from huggingface_hub import HfApi
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          space = os.environ["HF_SPACE"]
+          api.create_repo(space, repo_type="space", space_sdk="docker", exist_ok=True)
+          api.upload_folder(folder_path=".", repo_id=space, repo_type="space",
+                            allow_patterns=["Dockerfile", "README.md"],
+                            commit_message="Deploy OpenClaw Telethon template")
+          print("Deployed to https://huggingface.co/spaces/" + space)
+          PY
